@@ -7,76 +7,83 @@ import org.academiadecodigo.simplegraphics.keyboard.KeyboardEvent;
 import org.academiadecodigo.simplegraphics.keyboard.KeyboardEventType;
 import org.academiadecodigo.simplegraphics.keyboard.KeyboardHandler;
 
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 
 public class Cursor implements KeyboardHandler {
     private Rectangle rect;
     private int x;
     private int y;
     private int cellSize;
-    //private Keyboard keyboard;
     private Grid grid;
     private boolean isSpacePressed = false;
-    private boolean isPaintingThreadRunning = false;
 
     public Cursor(int x, int y, int cellSize, Grid grid) {
         this.x = x;
         this.y = y;
         this.cellSize = cellSize;
-        this.grid=grid;
-        this.rect = new Rectangle(x+10, y+10, cellSize, cellSize);
+        this.grid = grid;
+        this.rect = new Rectangle(x, y, cellSize, cellSize);
         rect.setColor(Color.GREEN);
         rect.fill();
 
     }
 
-    /*public void draw(){
-        rect.draw();
-    }*/
 
-   public void draw() {
+    public void draw() {
         rect.delete();
-        rect = new Rectangle(x+10, y+10, cellSize, cellSize);
+        rect = new Rectangle(x, y, cellSize, cellSize);
         rect.setColor(Color.GREEN);
         rect.fill();
     }
 
     public void moveUp() {
-        if (y - cellSize >= grid.getY() + 10) {
+        if (y - cellSize >= grid.getY()) {
             y -= cellSize;
             draw();
-            //rect.translate(0,-cellSize);
         }
     }
 
     public void moveDown() {
-        if (y + cellSize < grid.getY() + grid.getHeight() - 10) {
+        if (y + cellSize < grid.getY() + grid.getHeight()) {
             y += cellSize;
-            //rect.translate(0,cellSize);
             draw();
         }
     }
 
     public void moveLeft() {
-        if (x - cellSize >= grid.getX()+10) {
+        if (x - cellSize >= grid.getX()) {
             x -= cellSize;
-            //rect.translate(-cellSize,0);
             draw();
         }
     }
 
     public void moveRight() {
-        if (x + cellSize < grid.getX() + grid.getWidth()-10) {
+        if (x + cellSize < grid.getX() + grid.getWidth()) {
             x += cellSize;
-            //rect.translate(cellSize,0);
             draw();
         }
     }
 
+    public void saveToFile(String filename) {
+        try (FileOutputStream fileOutputStream = new FileOutputStream(filename);
+             OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream)) {
 
+            for (int row = 0; row < grid.getWidth(); row += cellSize) {
+                for (int col = 0; col < grid.getHeight(); col += cellSize) {
+                    String tileInfo = row + "," + col + System.lineSeparator();
+                    writer.write(tileInfo);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void paint() {
+        while (isSpacePressed) {
+            grid.paintTile(x, y);
+        }
+    }
     @Override
     public void keyPressed(KeyboardEvent event) {
         int key = event.getKey();
@@ -89,39 +96,24 @@ public class Cursor implements KeyboardHandler {
         } else if (key == KeyboardEvent.KEY_LEFT) {
             moveLeft();
         } else if (key == KeyboardEvent.KEY_SPACE) {
-            isSpacePressed=true;
+            //isSpacePressed=true;
             //paint();
-            startPaintingThread();
-            grid.paintTile(x,y);
+            grid.paintTile(x, y);
         } else if (key == KeyboardEvent.KEY_S) {
-            saveToFile();
+            saveToFile("test.txt");
+        } else if (key == KeyboardEvent.KEY_C) {
+            grid.resetTiles();
         }
     }
 
     @Override
-    public void keyReleased(KeyboardEvent keyboardEvent) {
-        int key = keyboardEvent.getKey();
-        if(key == KeyboardEvent.KEY_SPACE){
-            isSpacePressed=false;
+    public void keyReleased(KeyboardEvent event) {
+        int key = event.getKey();
+        if (key == KeyboardEvent.KEY_SPACE) {
+            isSpacePressed = false;
         }
     }
-    private void startPaintingThread (){
-        if (!isPaintingThreadRunning){
-            isPaintingThreadRunning = true;
-            new Thread(this::paint).start();
-        }
-    }
-    private void paint(){
-        while (isSpacePressed) {
-            grid.paintTile(x,y);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                System.out.println("Error writing to file: " + e.getMessage());
-            }
-        }
-        isPaintingThreadRunning=false;
-    }
+
     public static void addArrowKeyListeners(Keyboard keyboard) {
         KeyboardEvent moveRight = new KeyboardEvent();
         moveRight.setKey(KeyboardEvent.KEY_RIGHT);
@@ -157,23 +149,11 @@ public class Cursor implements KeyboardHandler {
         saveImage.setKey(KeyboardEvent.KEY_S);
         saveImage.setKeyboardEventType(KeyboardEventType.KEY_PRESSED);
         keyboard.addEventListener(saveImage);
+
+        KeyboardEvent resetTiles = new KeyboardEvent();
+        resetTiles.setKey(KeyboardEvent.KEY_C);
+        resetTiles.setKeyboardEventType(KeyboardEventType.KEY_PRESSED);
+        keyboard.addEventListener(resetTiles);
     }
 
-    public int getX(){
-        return x;
-    }
-
-    public int getY(){
-        return y;
-    }
-
-    private void saveToFile(){
-        try {
-            FileWriter writer = new FileWriter("output.txt");
-            writer.write(grid.toString());
-            writer.close();
-        } catch (IOException e) {
-            System.out.println("Error writing to file: " + e.getMessage());
-        }
-    }
 }
